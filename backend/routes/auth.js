@@ -1,15 +1,13 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 const router = express.Router();
 
-// Mock user storage (in production, this would be a database)
-const users = [];
-
-// Mock JWT secret (in production, this should be in environment variables)
+// JWT secret (in production, this should be in environment variables)
 const JWT_SECRET = 'your-secret-key';
 
-// Mock authentication middleware
+// Authentication middleware
 const auth = (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -37,29 +35,23 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = users.find(user => user.email === email);
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create new user
-    const newUser = {
-      id: users.length + 1,
+    // Create new user (password will be automatically hashed by the User model)
+    const newUser = new User({
       name,
       email,
-      password: hashedPassword,
-      createdAt: new Date()
-    };
+      password
+    });
 
-    users.push(newUser);
+    await newUser.save();
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: newUser.id, email: newUser.email },
+      { id: newUser._id, email: newUser.email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -68,7 +60,7 @@ router.post('/register', async (req, res) => {
       message: 'User created successfully',
       token,
       user: {
-        id: newUser.id,
+        id: newUser._id,
         name: newUser.name,
         email: newUser.email
       }
@@ -89,21 +81,21 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    // Find user
-    const user = users.find(user => user.email === email);
+    // Find user in database
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Check password using the User model's comparePassword method
+    const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user._id, email: user.email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -112,7 +104,7 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user.id,
+        id: user._id,
         name: user.name,
         email: user.email
       }
@@ -124,10 +116,10 @@ router.post('/login', async (req, res) => {
 });
 
 // GET /profile - Get user profile (protected route)
-router.get('/profile', auth, (req, res) => {
+router.get('/profile', auth, async (req, res) => {
   try {
-    // Find user by ID from token
-    const user = users.find(user => user.id === req.user.id);
+    // Find user by ID from token in database
+    const user = await User.findById(req.user.id).select('-password');
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -135,7 +127,7 @@ router.get('/profile', auth, (req, res) => {
 
     res.json({
       user: {
-        id: user.id,
+        id: user._id,
         name: user.name,
         email: user.email,
         createdAt: user.createdAt
