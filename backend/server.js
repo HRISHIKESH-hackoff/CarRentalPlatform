@@ -16,8 +16,8 @@ app.get('/', (req, res) => {
 
 // Route imports
 app.use('/api/auth', require('./routes/auth'));
-// app.use('/api/cars', require('./routes/cars'));
-// app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/cars', require('./routes/cars'));
+app.use('/api/bookings', require('./routes/bookings'));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
