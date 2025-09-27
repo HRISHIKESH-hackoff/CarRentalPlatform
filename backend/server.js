@@ -14,8 +14,8 @@ app.get('/', (req, res) => {
   res.json({ message: 'Car Rental Platform API' });
 });
 
-// TODO: Add route imports here
-// app.use('/api/auth', require('./routes/auth'));
+// Route imports
+app.use('/api/auth', require('./routes/auth'));
 // app.use('/api/cars', require('./routes/cars'));
 // app.use('/api/bookings', require('./routes/bookings'));
 
